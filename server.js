@@ -17,6 +17,7 @@ const NEWS_TTL_MS = 90_000;
 const EXTERNAL_TIMEOUT_MS = 4_500;
 const GOOGLE_NEWS_RSS_URL = 'https://news.google.com/rss/search';
 const SHUTDOWN_TIMEOUT_MS = 10_000;
+const NEWS_RESPONSE_MAX_BYTES = 512 * 1024;
 const PRICE_RATE_LIMIT = Object.freeze({ limit: 120, windowMs: 60_000 });
 const NEWS_RATE_LIMIT = Object.freeze({ limit: 60, windowMs: 60_000 });
 
@@ -32,12 +33,13 @@ const contentTypes = new Map([
   ['.jpeg', 'image/jpeg'],
   ['.webp', 'image/webp'],
   ['.svg', 'image/svg+xml'],
+  ['.txt', 'text/plain; charset=utf-8'],
 ]);
 
 function applySecurityHeaders(response, isProduction) {
   response.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: https:; object-src 'none'; script-src 'self'; style-src 'self'",
+    "default-src 'none'; base-uri 'none'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'",
   );
   response.setHeader('X-Content-Type-Options', 'nosniff');
   response.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -46,6 +48,9 @@ function applySecurityHeaders(response, isProduction) {
     'camera=(), microphone=(), geolocation=(), payment=()',
   );
   response.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  response.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  response.setHeader('Origin-Agent-Cluster', '?1');
+  response.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
   response.setHeader('X-Frame-Options', 'DENY');
   if (isProduction) {
     response.setHeader(
@@ -69,6 +74,7 @@ function sendJson(response, statusCode, payload, headers = {}) {
 function sendText(response, statusCode, message, headers = {}) {
   response.writeHead(statusCode, {
     'content-type': 'text/plain; charset=utf-8',
+    'cache-control': 'no-store',
     ...headers,
   });
   response.end(response.req?.method === 'HEAD' ? undefined : message);
@@ -236,7 +242,7 @@ function parseRssItems(xml) {
     .map((match) => {
       const block = match[0];
       const title = stripTags(readXmlTag(block, 'title'));
-      const link = stripTags(readXmlTag(block, 'link'));
+      const link = safeExternalHttpsUrl(stripTags(readXmlTag(block, 'link')));
       const description = stripTags(readXmlTag(block, 'description'));
       const source = stripTags(readXmlTag(block, 'source')) || 'Google News';
       const pubDate = stripTags(readXmlTag(block, 'pubDate'));
@@ -262,7 +268,40 @@ function parseRssItems(xml) {
     .filter(Boolean);
 }
 
-async function fetchWithTimeout(
+async function readLimitedResponseText(
+  response,
+  maxBytes = NEWS_RESPONSE_MAX_BYTES,
+) {
+  const contentLength = Number(response.headers.get('content-length'));
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new Error('External response exceeded the safe size limit.');
+  }
+
+  if (!response.body) {
+    return '';
+  }
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    totalBytes += value.byteLength;
+    if (totalBytes > maxBytes) {
+      await reader.cancel().catch(() => {});
+      throw new Error('External response exceeded the safe size limit.');
+    }
+    chunks.push(Buffer.from(value));
+  }
+
+  return Buffer.concat(chunks, totalBytes).toString('utf8');
+}
+
+async function fetchExternalText(
   url,
   options = {},
   timeoutMs = EXTERNAL_TIMEOUT_MS,
@@ -271,7 +310,14 @@ async function fetchWithTimeout(
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return {
+      response,
+      text: await readLimitedResponseText(response),
+    };
   } finally {
     clearTimeout(timeout);
   }
@@ -315,7 +361,7 @@ function fallbackNews() {
 
 function sanitizeNewsItem(item) {
   const title = String(item.title || '').trim();
-  const url = String(item.url || '').trim();
+  const url = safeExternalHttpsUrl(item.url);
 
   if (!title || !url) {
     return null;
@@ -329,9 +375,18 @@ function sanitizeNewsItem(item) {
     ),
     publishedAt: item.seendate || item.publishedAt || null,
     url,
-    image: item.socialimage || item.urlToImage || '',
+    image: safeExternalHttpsUrl(item.socialimage || item.urlToImage) || '',
     summary: String(item.description || item.summary || '').trim(),
   };
+}
+
+function safeExternalHttpsUrl(value) {
+  try {
+    const url = new URL(String(value || '').trim());
+    return url.protocol === 'https:' ? url.href : null;
+  } catch {
+    return null;
+  }
 }
 
 async function fetchNewsApiNews() {
@@ -347,14 +402,14 @@ async function fetchNewsApiNews() {
   url.searchParams.set('pageSize', '12');
   url.searchParams.set('apiKey', apiKey);
 
-  const response = await fetchWithTimeout(url, {
+  const { response, text } = await fetchExternalText(url, {
     headers: { accept: 'application/json' },
   });
   if (!response.ok) {
     throw new Error(`NewsAPI request failed: ${response.status}`);
   }
 
-  const payload = await response.json();
+  const payload = JSON.parse(text);
   const items = (payload.articles || []).map(sanitizeNewsItem).filter(Boolean);
   if (!items.length) {
     throw new Error('NewsAPI returned no usable articles');
@@ -377,7 +432,7 @@ async function fetchGoogleNewsRssNews() {
   url.searchParams.set('gl', 'TR');
   url.searchParams.set('ceid', 'TR:tr');
 
-  const response = await fetchWithTimeout(
+  const { response, text } = await fetchExternalText(
     url,
     {
       headers: {
@@ -392,7 +447,7 @@ async function fetchGoogleNewsRssNews() {
     throw new Error(`Google News RSS request failed: ${response.status}`);
   }
 
-  const items = parseRssItems(await response.text());
+  const items = parseRssItems(text);
   if (!items.length) {
     throw new Error('Google News RSS returned no usable items');
   }
@@ -415,7 +470,7 @@ async function fetchGdeltNews() {
   url.searchParams.set('timespan', '2weeks');
   url.searchParams.set('sort', 'datedesc');
 
-  const response = await fetchWithTimeout(url, {
+  const { response, text } = await fetchExternalText(url, {
     headers: {
       accept: 'application/json',
       'user-agent': 'altinpiyasasi.com news preview',
@@ -426,7 +481,7 @@ async function fetchGdeltNews() {
     throw new Error(`GDELT request failed: ${response.status}`);
   }
 
-  const payload = await response.json();
+  const payload = JSON.parse(text);
   const items = (payload.articles || []).map(sanitizeNewsItem).filter(Boolean);
   if (!items.length) {
     throw new Error('GDELT returned no usable articles');
@@ -466,31 +521,78 @@ async function getNews() {
 }
 
 async function serveStatic(requestUrl, response) {
-  const urlPath = decodeURIComponent(requestUrl.pathname);
+  let urlPath;
+  try {
+    urlPath = decodeURIComponent(requestUrl.pathname).replace(/\\/g, '/');
+  } catch {
+    sendText(response, 400, 'Bad request');
+    return;
+  }
+
+  if (/[\0-\x1f\x7f]/.test(urlPath)) {
+    sendText(response, 400, 'Bad request');
+    return;
+  }
+
   const requestedPath = urlPath === '/' ? '/index.html' : urlPath;
-  const filePath = path.normalize(path.join(PUBLIC_DIR, requestedPath));
+  const pathSegments = requestedPath.split('/').filter(Boolean);
+  if (pathSegments.some((segment) => segment.startsWith('.'))) {
+    sendText(response, 403, 'Forbidden');
+    return;
+  }
+
+  const filePath = path.resolve(PUBLIC_DIR, `.${requestedPath}`);
   const relativePath = path.relative(PUBLIC_DIR, filePath);
 
-  if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+  if (
+    relativePath === '..' ||
+    relativePath.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativePath)
+  ) {
     sendText(response, 403, 'Forbidden');
     return;
   }
 
   try {
-    const file = await fs.readFile(filePath);
+    const [publicRealPath, fileRealPath] = await Promise.all([
+      fs.realpath(PUBLIC_DIR),
+      fs.realpath(filePath),
+    ]);
+    const realRelativePath = path.relative(publicRealPath, fileRealPath);
+    if (
+      realRelativePath === '..' ||
+      realRelativePath.startsWith(`..${path.sep}`) ||
+      path.isAbsolute(realRelativePath)
+    ) {
+      sendText(response, 403, 'Forbidden');
+      return;
+    }
+
+    const file = await fs.readFile(fileRealPath);
     const contentType =
-      contentTypes.get(path.extname(filePath).toLowerCase()) ||
+      contentTypes.get(path.extname(fileRealPath).toLowerCase()) ||
       'application/octet-stream';
+    const isHtml = contentType.includes('html');
+    const isRobots = path.basename(fileRealPath).toLowerCase() === 'robots.txt';
     response.writeHead(200, {
       'content-type': contentType,
-      'cache-control': contentType.includes('html')
+      'content-length': String(file.byteLength),
+      'cache-control': isHtml
         ? 'no-store'
-        : 'public, max-age=3600',
+        : isRobots
+          ? 'public, max-age=300'
+          : 'public, max-age=3600',
+      ...(isHtml ? { 'content-language': 'tr' } : {}),
     });
     response.end(response.req?.method === 'HEAD' ? undefined : file);
   } catch (error) {
-    if (error.code === 'ENOENT') {
+    if (['ENOENT', 'ENOTDIR', 'EISDIR'].includes(error.code)) {
       sendText(response, 404, 'Not found');
+      return;
+    }
+
+    if (['EACCES', 'EPERM'].includes(error.code)) {
+      sendText(response, 403, 'Forbidden');
       return;
     }
 
@@ -511,9 +613,17 @@ function createAppServer(options = {}) {
 
   return http.createServer(async (request, response) => {
     applySecurityHeaders(response, isProduction);
-    const requestUrl = new URL(request.url, 'http://localhost');
 
     try {
+      const requestUrl = new URL(request.url, 'http://localhost');
+      if (
+        requestUrl.pathname === '/health' ||
+        requestUrl.pathname === '/api' ||
+        requestUrl.pathname.startsWith('/api/')
+      ) {
+        response.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+      }
+
       if (requestUrl.pathname === '/api/prices') {
         if (request.method !== 'GET') {
           methodNotAllowed(response, ['GET']);
@@ -657,5 +767,7 @@ module.exports = {
   installGracefulShutdown,
   methodNotAllowed,
   providerStatus,
+  readLimitedResponseText,
+  safeExternalHttpsUrl,
   startServer,
 };
