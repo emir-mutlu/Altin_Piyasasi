@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#151019">
+    <meta
+      name="description"
+      content="Altinpiyasasi.com Metals.dev global spot altın fiyatları, teorik Darphane ürün değerleri ve piyasa haberleri."
+    >
+    <title>Altın Piyasası | Global Spot Altın Fiyatları</title>
+    <link rel="stylesheet" href="styles.css?v=official-reference-1">
+  </head>
+  <body>
+    <canvas class="gold-flow" id="goldFlow" aria-hidden="true"></canvas>
+    <div class="page-shell">
+      <header class="site-header" id="top">
+        <a class="brand" href="#top" aria-label="Altın Piyasası ana sayfa">
+          <span class="brand-mark">A</span>
+          <span>
+            <strong>altinpiyasasi</strong><small>.com</small>
+          </span>
+        </a>
+
+        <nav class="nav-links" aria-label="Ana menü">
+          <a href="#piyasa">Piyasa</a>
+          <a href="#haberler">Haberler</a>
+          <a href="#araclar">Araçlar</a>
+          <a href="#iletisim">İletişim</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="hero-section" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <p class="eyebrow">Türkiye altın piyasası</p>
+            <h1 id="hero-title">Altın Piyasası</h1>
+            <p class="hero-lede">
+              Gram, çeyrek, ons ve döviz hareketlerini aynı ekranda takip edin.
+            </p>
+            <div class="hero-actions">
+              <a class="primary-link" href="#piyasa">Canlı spot fiyatlar</a>
+              <a class="secondary-link" href="#haberler">Haber akışı</a>
+            </div>
+          </div>
+
+          <section class="price-terminal" id="piyasa" aria-labelledby="prices-title">
+            <div class="terminal-topline">
+              <div>
+                <p class="panel-kicker">Canlı spot piyasa</p>
+                <h2 id="prices-title">Altın spot fiyatları</h2>
+              </div>
+              <button class="icon-button" id="refreshButton" type="button" title="Verileri yenile" aria-label="Verileri yenile">
+                ↻
+              </button>
+            </div>
+
+            <div class="featured-grid" id="featuredPrices" aria-live="polite">
+              <article class="featured-skeleton"></article>
+              <article class="featured-skeleton"></article>
+              <article class="featured-skeleton"></article>
+            </div>
+
+            <div class="price-table-wrap">
+              <table class="price-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Ürün</th>
+                    <th scope="col">Alış / Satış</th>
+                    <th scope="col">Fiyat</th>
+                    <th scope="col">Değişim</th>
+                  </tr>
+                </thead>
+                <tbody id="priceRows">
+                  <tr>
+                    <td colspan="4">Fiyatlar yükleniyor...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="terminal-foot">
+              <span id="priceSource">Bağlanıyor</span>
+              <time id="priceUpdated" datetime=""></time>
+            </div>
+          </section>
+        </section>
+
+        <section class="market-strip" aria-label="Piyasa göstergeleri">
+          <div class="strip-track" id="marketTicker">
+            <span>Gram Altın</span>
+            <span>Çeyrek Altın</span>
+            <span>Ons Altın</span>
+            <span>USD/TRY</span>
+            <span>EUR/TRY</span>
+          </div>
+        </section>
+
+        <section class="tool-band" id="araclar" aria-labelledby="converter-title">
+          <div class="section-heading">
+            <p class="eyebrow">Hızlı hesap</p>
+            <h2 id="converter-title">Altın çevirici</h2>
+          </div>
+          <div class="converter">
+            <label>
+              <span>Miktar</span>
+              <input id="amountInput" type="number" min="0" step="0.01" value="1" inputmode="decimal">
+            </label>
+            <label>
+              <span>Ürün</span>
+              <select id="productSelect">
+                <option value="GRAM">Gram Altın</option>
+                <option value="CEYREK">Çeyrek Ziynet</option>
+                <option value="CUMHURIYET">Birlik Cumhuriyet Ziynet</option>
+                <option value="ATA">ATA / Cumhuriyet Sikke</option>
+              </select>
+            </label>
+            <output id="converterOutput">-</output>
+          </div>
+        </section>
+
+        <section class="news-section" id="haberler" aria-labelledby="news-title">
+          <div class="section-heading">
+            <p class="eyebrow">Güncel akış</p>
+            <h2 id="news-title">Piyasa haberleri</h2>
+          </div>
+
+          <div class="news-layout">
+            <aside class="news-pulse" aria-label="Son başlıklar">
+              <div class="pulse-line"></div>
+              <div id="headlineTicker" class="headline-ticker">
+                <span>Haberler yükleniyor...</span>
+              </div>
+            </aside>
+
+            <div class="news-grid" id="newsGrid" aria-live="polite">
+              <article class="news-skeleton"></article>
+              <article class="news-skeleton"></article>
+              <article class="news-skeleton"></article>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer" id="iletisim">
+        <div>
+          <a class="brand footer-brand" href="#top" aria-label="Altın Piyasası ana sayfa">
+            <span class="brand-mark">A</span>
+            <span>
+              <strong>altinpiyasasi</strong><small>.com</small>
+            </span>
+          </a>
+          <p>
+            Veriler yaklaşık 1-2 dakika gecikmeli olabilir. Kuyumcu/perakende
+            satış fiyatı ve yatırım tavsiyesi değildir.
+          </p>
+        </div>
+        <div class="footer-links">
+          <a href="#piyasa">Fiyatlar</a>
+          <a href="#haberler">Haberler</a>
+          <a href="mailto:info@altinpiyasasi.com">info@altinpiyasasi.com</a>
+        </div>
+      </footer>
+    </div>
+
+    <script src="app.js?v=official-reference-1" defer></script>
+  </body>
+</html>

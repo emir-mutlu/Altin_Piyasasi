@@ -1,0 +1,25 @@
+{
+  "name": "altinpiyasasi-landing",
+  "version": "1.0.0",
+  "description": "Altinpiyasasi.com global spot gold prices in Turkish lira with market news.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test",
+    "verify:bist": "node scripts/verify-bist-feed.js"
+  },
+  "keywords": [
+    "gold",
+    "finance",
+    "turkey",
+    "landing-page"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.10.1"
+  }
+}
