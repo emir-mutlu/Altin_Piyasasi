@@ -9,6 +9,12 @@ const {
   GoldPriceUnavailableError,
   MetalsDevGoldProvider,
 } = require('./services/metals-dev-gold-provider');
+const {
+  CollectApiGoldProvider,
+} = require('./services/collectapi-gold-provider');
+const {
+  CombinedGoldProvider,
+} = require('./services/combined-gold-provider');
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = '0.0.0.0';
@@ -166,13 +172,23 @@ class UnavailablePriceProvider {
 function createPriceProvider(env = process.env, options = {}) {
   const providerName = String(env.GOLD_PROVIDER || 'metals_dev').toLowerCase();
   if (providerName === 'metals_dev' || providerName === 'metals-dev') {
-    return new MetalsDevGoldProvider({
-      apiKey: env.METALS_DEV_API_KEY,
-      cacheTtlMs: env.GOLD_CACHE_TTL_MS,
-      timeoutMs: env.GOLD_REQUEST_TIMEOUT_MS,
-      maxResponseBytes: env.GOLD_MAX_RESPONSE_BYTES,
-      staleMaxAgeMs: env.GOLD_STALE_MAX_AGE_MS,
-      ...options.metalsDev,
+    return new CombinedGoldProvider({
+      metalsProvider: new MetalsDevGoldProvider({
+        apiKey: env.METALS_DEV_API_KEY,
+        cacheTtlMs: env.GOLD_CACHE_TTL_MS,
+        timeoutMs: env.GOLD_REQUEST_TIMEOUT_MS,
+        maxResponseBytes: env.GOLD_MAX_RESPONSE_BYTES,
+        staleMaxAgeMs: env.GOLD_STALE_MAX_AGE_MS,
+        ...options.metalsDev,
+      }),
+      collectProvider: new CollectApiGoldProvider({
+        token: env.COLLECTAPI_TOKEN,
+        cacheTtlMs: env.COLLECTAPI_CACHE_TTL_MS,
+        timeoutMs: env.COLLECTAPI_REQUEST_TIMEOUT_MS,
+        maxResponseBytes: env.COLLECTAPI_MAX_RESPONSE_BYTES,
+        staleMaxAgeMs: env.COLLECTAPI_STALE_MAX_AGE_MS,
+        ...options.collectApi,
+      }),
     });
   }
   if (providerName === 'bist' && env.NODE_ENV !== 'production') {
@@ -193,11 +209,24 @@ function createPriceProvider(env = process.env, options = {}) {
 function providerStatus(provider) {
   if (typeof provider.status === 'function') {
     const status = provider.status();
-    return {
+    const safeStatus = {
       provider: status.provider,
       configured: Boolean(status.configured),
       blockedUntil: status.blockedUntil || null,
     };
+    if (status.providers && typeof status.providers === 'object') {
+      safeStatus.providers = Object.fromEntries(
+        Object.entries(status.providers).map(([name, child]) => [
+          name,
+          {
+            provider: child.provider,
+            configured: Boolean(child.configured),
+            blockedUntil: child.blockedUntil || null,
+          },
+        ]),
+      );
+    }
+    return safeStatus;
   }
   return {
     provider: provider instanceof BistGoldProvider ? 'bist' : 'unknown',
@@ -648,13 +677,21 @@ function createAppServer(options = {}) {
                 source:
                   status.provider === 'metals_dev'
                     ? 'Metals.dev'
+                    : status.provider === 'combined'
+                      ? 'Metals.dev + CollectAPI'
                     : status.provider,
-                sourceType: status.provider === 'metals_dev' ? 'spot' : 'reference',
+                sourceType:
+                  status.provider === 'metals_dev'
+                    ? 'spot'
+                    : status.provider === 'combined'
+                      ? 'mixed'
+                      : 'reference',
                 freshness: 'unavailable',
                 configured: status.configured,
+                ...(status.providers ? { providers: status.providers } : {}),
                 isEstimated: false,
                 error: status.configured
-                  ? 'Altın spot fiyatı şu anda kullanılamıyor.'
+                  ? 'Altın fiyatları şu anda kullanılamıyor.'
                   : 'Altın fiyat sağlayıcısı yapılandırılmamış.',
               },
               { 'retry-after': String(retryAfterSeconds) },

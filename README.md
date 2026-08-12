@@ -5,24 +5,25 @@ Vanilla HTML, CSS ve JavaScript frontend ile yerleşik `node:http` backend kulla
 ## Gereksinimler
 
 - Node.js 18 veya üzeri
-- Production fiyat akışı için Metals.dev API key
+- Production fiyat akışı için Metals.dev API key ve CollectAPI token
 
 ## Yerel çalıştırma
 
 ```powershell
 npm ci
 $env:METALS_DEV_API_KEY="your_metals_dev_api_key"
+$env:COLLECTAPI_TOKEN="your_collectapi_token"
 $env:GOLD_PROVIDER="metals_dev"
 npm start
 ```
 
 Ardından `http://localhost:3000` adresini açın. PowerShell execution policy `npm` komutunu engelliyorsa `npm.cmd ci`, `npm.cmd test` ve `npm.cmd start` kullanın.
 
-API key yokken sunucu ve `/health` çalışır; `/api/prices` güvenli biçimde HTTP 503 döndürür ve demo fiyat üretmez.
+İki fiyat anahtarı da yokken sunucu ve `/health` çalışır; `/api/prices` güvenli biçimde HTTP 503 döndürür ve demo fiyat üretmez. Sağlayıcılardan yalnızca biri yapılandırılmışsa diğer sağlayıcıya ait satırlar boş bırakılarak mevcut gerçek veri sunulur.
 
 ## Fiyat sağlayıcıları
 
-Production varsayılanı `metals_dev` provider'ıdır. Backend yalnızca sabit `https://api.metals.dev/v1/metal/spot` endpoint'ine bağlanır ve `metal=gold`, `currency=TRY` parametrelerini kullanır.
+Production varsayılanı birleşik fiyat akışıdır. `GOLD_PROVIDER=metals_dev` geriye uyumlu adıyla backend, Gram ve Ons için sabit `https://api.metals.dev/v1/metal/spot`; fiziksel Türkiye ürünleri için sabit `https://api.collectapi.com/economy/goldPrice` endpoint'ine bağlanır. CollectAPI kimlik doğrulaması yalnızca backend `Authorization` header'ında yapılır.
 
 `GOLD_PROVIDER=bist` yalnızca development ortamında açıkça seçilebilen eski resmî referans provider'ıdır. Metals.dev hatasında BIST'e otomatik fallback yapılmaz.
 
@@ -30,21 +31,24 @@ Production varsayılanı `metals_dev` provider'ıdır. Backend yalnızca sabit `
 
 - Gram Altın: Metals.dev global spot TRY/gram.
 - Ons Altın: Metals.dev global spot TRY/troy ounce.
-- Çeyrek Ziynet: Darphane ağırlık ve saflık değerleriyle teorik hesaplama.
-- Birlik Cumhuriyet Ziynet: Darphane ağırlık ve saflık değerleriyle teorik hesaplama.
-- ATA / Cumhuriyet Sikke: Darphane ağırlık ve saflık değerleriyle teorik hesaplama.
+- Çeyrek, Yarım, Tam, Cumhuriyet, Ata, Reşat ve 22 Ayar Altın: CollectAPI gerçek piyasa alış/satış verisi.
 
-Teorik ürünlerde gerçek perakende alış/satış üretilmez; `buy` ve `sell` alanları `null` kalır.
+Fiziksel ürünlerde teorik değer veya yapay spread üretilmez. CollectAPI yalnızca alış/satış döndürürse `price` ve `reference` için `sell` kullanılır; alış/satış ortalaması alınmaz. Doğrulanmış günlük değişim alanı bulunmadığı için bu satırlarda `change` ve `changePercent` `null` kalır.
 
 ## Environment variables
 
 ```text
 METALS_DEV_API_KEY
+COLLECTAPI_TOKEN
 GOLD_PROVIDER
 GOLD_CACHE_TTL_MS
 GOLD_REQUEST_TIMEOUT_MS
 GOLD_MAX_RESPONSE_BYTES
 GOLD_STALE_MAX_AGE_MS
+COLLECTAPI_CACHE_TTL_MS
+COLLECTAPI_REQUEST_TIMEOUT_MS
+COLLECTAPI_MAX_RESPONSE_BYTES
+COLLECTAPI_STALE_MAX_AGE_MS
 PORT
 NODE_ENV
 NEWS_API_KEY
@@ -54,9 +58,9 @@ NEWS_API_KEY
 
 ## Güvenilirlik ve güvenlik
 
-- Varsayılan fiyat cache süresi 60 saniyedir.
+- Her iki provider için varsayılan fiyat cache süresi 60 saniyedir.
 - Eşzamanlı cache miss istekleri tek harici istekte birleştirilir.
-- Son başarılı veri yalnızca `GOLD_STALE_MAX_AGE_MS` sınırı içinde stale olarak sunulur.
+- Son başarılı veri ilgili provider'ın stale yaş sınırı içinde sunulur.
 - 401/403 yapılandırma hataları ve 429 kota cevapları kontrollü backoff uygular.
 - Provider isteklerinde timeout ve stream tabanlı maksimum response boyutu bulunur.
 - API key frontend'e, API response'una ve uygulama loglarına yazılmaz.

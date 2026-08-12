@@ -59,3 +59,55 @@ test('production localhost API fallbackı bulunmaz', () => {
   assert.doesNotMatch(source, /http:\/\/localhost:3000/);
   assert.match(source, /fetchApiJson\("\/api\/prices"\)/);
 });
+
+test('CollectAPI endpointi ve tokenı frontend kaynaklarında bulunmaz', () => {
+  for (const filename of ['app.js', 'index.html']) {
+    const source = fs.readFileSync(
+      path.join(__dirname, '..', 'public', filename),
+      'utf8',
+    );
+    assert.doesNotMatch(source, /api\.collectapi\.com|COLLECTAPI_TOKEN|apikey\s/i);
+  }
+});
+
+test('görünür fiyat metadata ve gecikme uyarısı tamamen kaldırılmıştır', () => {
+  const html = fs.readFileSync(
+    path.join(__dirname, '..', 'public', 'index.html'),
+    'utf8',
+  );
+  const app = fs.readFileSync(
+    path.join(__dirname, '..', 'public', 'app.js'),
+    'utf8',
+  );
+  const visibleSource = `${html}\n${app}`;
+
+  assert.doesNotMatch(visibleSource, /Kaynak:/);
+  assert.doesNotMatch(visibleSource, /Son veri zamanı:/);
+  assert.doesNotMatch(visibleSource, /Veriler yaklaşık 1-2 dakika/);
+  assert.doesNotMatch(html, /class="terminal-foot"|id="priceSource"|id="priceUpdated"/);
+});
+
+test('çevirici yalnızca dokuz hedef ürünü doğru sırada içerir', () => {
+  const html = fs.readFileSync(
+    path.join(__dirname, '..', 'public', 'index.html'),
+    'utf8',
+  );
+  const select = html.slice(
+    html.indexOf('<select id="productSelect">'),
+    html.indexOf('</select>', html.indexOf('<select id="productSelect">')),
+  );
+  const options = [...select.matchAll(/<option value="([^"]+)">([^<]+)<\/option>/g)]
+    .map((match) => [match[1], match[2]]);
+
+  assert.deepEqual(options, [
+    ['GRAM', 'Gram Altın'],
+    ['ONS', 'Ons Altın'],
+    ['CEYREK', 'Çeyrek Altın'],
+    ['YARIM', 'Yarım Altın'],
+    ['TAM', 'Tam Altın'],
+    ['CUMHURIYET', 'Cumhuriyet Altını'],
+    ['ATA', 'Ata Altın'],
+    ['RESAT', 'Reşat Altını'],
+    ['ALTIN_22', '22 Ayar Altın'],
+  ]);
+});

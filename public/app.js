@@ -1,6 +1,5 @@
 const state = {
   prices: [],
-  priceSource: "",
   lastPriceLoadAt: 0,
   loadingPrices: false,
   lastNewsLoadAt: 0,
@@ -27,15 +26,6 @@ const numberFormatter = new Intl.NumberFormat("tr-TR", {
   maximumFractionDigits: 2,
 });
 
-const sourceDateFormatter = new Intl.DateTimeFormat("tr-TR", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Europe/Istanbul",
-});
-
 const dateFormatter = new Intl.DateTimeFormat("tr-TR", {
   day: "2-digit",
   month: "short",
@@ -49,8 +39,6 @@ const elements =
     : {
         featuredPrices: document.querySelector("#featuredPrices"),
         priceRows: document.querySelector("#priceRows"),
-        priceSource: document.querySelector("#priceSource"),
-        priceUpdated: document.querySelector("#priceUpdated"),
         refreshButton: document.querySelector("#refreshButton"),
         marketTicker: document.querySelector("#marketTicker"),
         amountInput: document.querySelector("#amountInput"),
@@ -128,7 +116,7 @@ function priceLabel(row) {
   if (row.isEstimated || row.type === "theoretical") {
     return "Teorik";
   }
-  return row.type === "spot" ? "Spot" : "Referans";
+  return row.type === "spot" ? "Spot" : "Piyasa";
 }
 
 function rowChangePercent(row) {
@@ -178,7 +166,6 @@ function renderPriceTable(rows) {
 
 function renderTicker(rows) {
   const tickerItems = rows
-    .slice(0, 7)
     .map(
       (row) =>
         `<span>${row.name} (${priceLabel(row)}): ${currency(row.reference, row.currency)}</span>`,
@@ -210,32 +197,14 @@ function applyPricePayload(payload) {
   state.prices = (payload.rows || []).map((row) =>
     isStale ? { ...row, change: null, changePercent: null } : row,
   );
-  state.priceSource = payload.source || "Bilinmeyen kaynak";
 
   renderFeatured(state.prices);
   renderPriceTable(state.prices);
   renderTicker(state.prices);
   renderConverter();
-
-  const sourceDate = new Date(
-    payload.sourceTimestamp || payload.updatedAt || payload.sourceDate,
-  );
-  const warning =
-    isStale
-      ? payload.warning || "Veri geçici olarak güncellenemedi."
-      : "";
-
-  elements.priceSource.textContent = `Kaynak: ${state.priceSource}${warning ? ` · ${warning}` : ""}`;
-  elements.priceUpdated.dateTime = Number.isNaN(sourceDate.getTime())
-    ? ""
-    : sourceDate.toISOString();
-  elements.priceUpdated.textContent = Number.isNaN(sourceDate.getTime())
-    ? ""
-    : `Son veri zamanı: ${sourceDateFormatter.format(sourceDate)}`;
 }
 
-function renderPriceUnavailable(error) {
-  const source = error?.payload?.source || "Metals.dev";
+function renderPriceUnavailable() {
   state.prices = [];
   elements.featuredPrices.innerHTML = Array.from(
     { length: 3 },
@@ -249,14 +218,11 @@ function renderPriceUnavailable(error) {
   ).join("");
   elements.priceRows.innerHTML = `
     <tr>
-      <td colspan="4">Global spot altın verisi şu anda kullanılamıyor.</td>
+      <td colspan="4">Altın fiyatları şu anda kullanılamıyor.</td>
     </tr>
   `;
   elements.marketTicker.innerHTML =
     "<span>Spot fiyat verisi bekleniyor</span><span>Spot fiyat verisi bekleniyor</span>";
-  elements.priceSource.textContent = `Kaynak: ${source} · Veri geçici olarak güncellenemedi.`;
-  elements.priceUpdated.dateTime = "";
-  elements.priceUpdated.textContent = "";
   renderConverter();
 }
 
@@ -270,7 +236,7 @@ async function loadPrices() {
   try {
     applyPricePayload(await fetchApiJson("/api/prices"));
   } catch (error) {
-    renderPriceUnavailable(error);
+    renderPriceUnavailable();
   } finally {
     state.lastPriceLoadAt = Date.now();
     state.loadingPrices = false;
