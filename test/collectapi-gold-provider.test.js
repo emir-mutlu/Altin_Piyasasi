@@ -7,6 +7,7 @@ const {
   CollectApiGoldProvider,
   PRODUCT_ALIASES,
   buildCollectApiUrl,
+  parseCollectApiPayload,
   parseCollectApiPrice,
   parseRetryAfter,
   validateCollectApiPayload,
@@ -22,15 +23,30 @@ function collectPayload(result = []) {
   return { success: true, result };
 }
 
+function liveProduct(name, buying, selling, overrides = {}) {
+  return {
+    name,
+    buying,
+    buyingstr: String(buying),
+    selling,
+    sellingstr: String(selling),
+    time: '19:18:22',
+    date: '2026-08-12',
+    datetime: '2026-08-12T19:18:22.000Z',
+    rate: 1.27,
+    ...overrides,
+  };
+}
+
 function allProducts() {
   return [
-    { name: 'Çeyrek Altın', buy: '7.100,50', sell: '7.250,75' },
-    { name: 'Yarım Altın', buy: '14.201,00', sell: '14.501,50' },
-    { name: 'Tam Altın', buy: '28.402,00', sell: '29.003,00' },
-    { name: 'Cumhuriyet Altını', buy: '29.100,00', sell: '29.500,00' },
-    { name: 'Ata Altın', buy: '29.300,00', sell: '29.700,00' },
-    { name: 'Reşat Altını', buy: '29.400,00', sell: '29.800,00' },
-    { name: '22 Ayar Altın TL/Gr', buy: '4.050,25', sell: '4.110,75' },
+    liveProduct('Çeyrek Altın', 11_004.81, 11_179.93),
+    liveProduct('Yarım Altın', 22_009.62, 22_359.86),
+    liveProduct('Tam Altın', 44_019.24, 44_719.72),
+    liveProduct('Cumhuriyet Altını', 45_100.25, 45_820.5),
+    liveProduct('Ata Altın', 45_300.4, 46_020.75),
+    liveProduct('Reşat Lira Altın', 46_000.5, 46_800.9),
+    liveProduct('22 Ayar Bilezik', 4_050.25, 4_110.75),
   ];
 }
 
@@ -79,14 +95,15 @@ test('yedi fiziksel ürünü açık alias map ile canonical kodlara dönüştür
     ['CEYREK', 'YARIM', 'TAM', 'CUMHURIYET', 'ATA', 'RESAT', 'ALTIN_22'],
   );
   assert.equal(PRODUCT_ALIASES.get('çeyrek altın'), 'CEYREK');
-  assert.equal(PRODUCT_ALIASES.get('22 ayar altın tl/gr'), 'ALTIN_22');
+  assert.equal(PRODUCT_ALIASES.get('reşat lira altın'), 'RESAT');
+  assert.equal(PRODUCT_ALIASES.get('22 ayar bilezik'), 'ALTIN_22');
 });
 
 test('ürün adında yalnızca boşluk, Unicode ve Türkçe harf normalizasyonu uygular', () => {
   const rows = validateCollectApiPayload(
     collectPayload([
-      { name: '  ÇEYREK   ALTIN  ', buy: '1', sell: '2' },
-      { name: 'Reşat Altın', buy: '3', sell: '4' },
+      liveProduct('  ÇEYREK   ALTIN  ', 1, 2),
+      liveProduct('REŞAT LİRA ALTIN', 3, 4),
     ]),
   );
   assert.deepEqual(rows.map((row) => row.code), ['CEYREK', 'RESAT']);
@@ -98,7 +115,12 @@ test('benzer ve bilinmeyen ürünleri fuzzy eşleştirme yapmadan yok sayar', ()
       { name: 'Çeyrek Ziynet', buy: '1', sell: '2' },
       { name: 'Tam Altınlık', buy: '1', sell: '2' },
       { name: 'Ata Lira', buy: '1', sell: '2' },
-      { name: '22 Ayar Bilezik', buy: '1', sell: '2' },
+      { name: 'Reşat İkibuçuk Altın', buy: '1', sell: '2' },
+      { name: 'Reşat Beşibiryerde', buy: '1', sell: '2' },
+      { name: 'Kulplu Reşat', buy: '1', sell: '2' },
+      { name: '14 Ayar Altın', buy: '1', sell: '2' },
+      { name: '18 Ayar Altın', buy: '1', sell: '2' },
+      { name: '22 Ayar Altın TL/Gr', buy: '1', sell: '2' },
       { name: 'Gremse Altın', buy: '1', sell: '2' },
     ]),
   );
@@ -110,8 +132,8 @@ test('aynı canonical ürün için birden fazla kesin alias eşleşmesini redded
     () =>
       validateCollectApiPayload(
         collectPayload([
-          { name: 'Reşat Altın', buy: '1', sell: '2' },
-          { name: 'Reşat Altını', buy: '3', sell: '4' },
+          liveProduct('Reşat Lira Altın', 1, 2),
+          liveProduct('Reşat Lira Altın', 3, 4),
         ]),
       ),
     CollectApiDataError,
@@ -148,52 +170,101 @@ test('boş, çizgi, NaN, Infinity, negatif, sıfır ve bozuk fiyatları null yap
   }
 });
 
-test('gerçek buy/sell kullanır; ayrı fiyat yoksa sell değerini price yapar', () => {
+test('canlı buying/selling alanlarını kullanır ve selling değerini price yapar', () => {
   const [row] = validateCollectApiPayload(
     collectPayload([
-      {
-        name: 'Çeyrek Altın',
-        buy: '7.100,50',
-        sell: '7.250,75',
-        change: '99',
-        changePercent: '88',
-      },
+      liveProduct('Çeyrek Altın', 11_004.81, 11_179.93),
     ]),
   );
-  assert.equal(row.buy, 7_100.5);
-  assert.equal(row.sell, 7_250.75);
-  assert.equal(row.price, 7_250.75);
-  assert.equal(row.reference, 7_250.75);
+  assert.equal(row.buy, 11_004.81);
+  assert.equal(row.sell, 11_179.93);
+  assert.equal(row.price, 11_179.93);
+  assert.equal(row.reference, 11_179.93);
   assert.equal(row.change, null);
   assert.equal(row.changePercent, null);
   assert.equal(row.isEstimated, false);
 });
 
-test('doğrulanabilir current/price/last alanını sell değerinden önce kullanır', () => {
-  for (const [field, value] of [
-    ['current', '7.200,00'],
-    ['price', '7.210,00'],
-    ['last', '7.220,00'],
-  ]) {
-    const [row] = validateCollectApiPayload(
-      collectPayload([
-        { name: 'Çeyrek Altın', buy: '7.100', sell: '7.300', [field]: value },
-      ]),
-    );
-    assert.equal(row.price, parseCollectApiPrice(value));
-  }
-});
-
-test('mevcut ama bozuk current alanını sell ile gizlemez', () => {
+test('numeric canlı alanları string ve eski alanlardan önce kullanır', () => {
   const [row] = validateCollectApiPayload(
     collectPayload([
-      { name: 'Çeyrek Altın', buy: '7100', sell: '7300', current: 'broken' },
+      liveProduct('Çeyrek Altın', 11_004.81, 11_179.93, {
+        buyingstr: '1',
+        sellingstr: '2',
+        buy: '3',
+        sell: '4',
+      }),
     ]),
   );
-  assert.equal(row.buy, 7_100);
-  assert.equal(row.sell, 7_300);
+  assert.equal(row.buy, 11_004.81);
+  assert.equal(row.sell, 11_179.93);
+  assert.equal(row.price, 11_179.93);
+});
+
+test('buyingstr/sellingstr ve eski buy/sell şemaları geriye uyumlu çalışır', () => {
+  const rows = validateCollectApiPayload(
+    collectPayload([
+      liveProduct('Çeyrek Altın', undefined, undefined, {
+        buyingstr: '11.004,81',
+        sellingstr: '11.179,93',
+      }),
+      {
+        name: 'Yarım Altın',
+        buy: '22.009,62',
+        sell: '22.359,86',
+        buyingstr: '1',
+        sellingstr: '2',
+      },
+    ]),
+  );
+  assert.deepEqual(
+    rows.map((row) => [row.buy, row.sell, row.price]),
+    [
+      [11_004.81, 11_179.93, 11_179.93],
+      [22_009.62, 22_359.86, 22_359.86],
+    ],
+  );
+});
+
+test('malformed canlı ve fallback fiyatlarından değer üretmez', () => {
+  const [row] = validateCollectApiPayload(
+    collectPayload([
+      liveProduct('Çeyrek Altın', NaN, Infinity, {
+        buyingstr: 'broken',
+        sellingstr: '-1',
+        buy: 0,
+        sell: -1,
+      }),
+    ]),
+  );
+  assert.equal(row.buy, null);
+  assert.equal(row.sell, null);
   assert.equal(row.price, null);
   assert.equal(row.reference, null);
+});
+
+test('geçerli datetime source timestamp olur, date ve time yeniden birleştirilmez', async () => {
+  const parsed = parseCollectApiPayload(collectPayload(allProducts()));
+  assert.equal(parsed.sourceTimestamp, '2026-08-12T19:18:22.000Z');
+
+  const result = await provider().getPrices();
+  assert.equal(result.sourceTimestamp, '2026-08-12T19:18:22.000Z');
+  assert.equal(result.sourceDate, '2026-08-12T19:18:22.000Z');
+
+  const withoutDatetime = parseCollectApiPayload(
+    collectPayload([
+      liveProduct('Çeyrek Altın', 1, 2, { datetime: 'invalid' }),
+    ]),
+  );
+  assert.equal(withoutDatetime.sourceTimestamp, null);
+});
+
+test('semantiği doğrulanmamış rate alanını değişim olarak kullanmaz', () => {
+  const [row] = validateCollectApiPayload(
+    collectPayload([liveProduct('Çeyrek Altın', 1, 2, { rate: 1.27 })]),
+  );
+  assert.equal(row.change, null);
+  assert.equal(row.changePercent, null);
 });
 
 test('geçersiz response envelope ve result yapısını reddeder', () => {

@@ -175,19 +175,31 @@ function renderTicker(rows) {
   elements.marketTicker.innerHTML = `${tickerItems}${tickerItems}`;
 }
 
+function calculateConversion(rows, code, amount) {
+  const numericAmount = Number(amount);
+  const selected = rows.find((row) => row.code === code);
+  return selected && Number.isFinite(selected.reference) && Number.isFinite(numericAmount)
+    ? numericAmount * selected.reference
+    : null;
+}
+
 function renderConverter() {
   const amount = Number(elements.amountInput.value || 0);
-  const selected = state.prices.find(
-    (row) => row.code === elements.productSelect.value,
+  const total = calculateConversion(
+    state.prices,
+    elements.productSelect.value,
+    amount,
   );
 
-  if (!selected || !Number.isFinite(selected.reference)) {
+  if (!Number.isFinite(total)) {
     elements.converterOutput.value = "—";
     elements.converterOutput.textContent = "—";
     return;
   }
 
-  const total = amount * selected.reference;
+  const selected = state.prices.find(
+    (row) => row.code === elements.productSelect.value,
+  );
   elements.converterOutput.value = currency(total, selected.currency);
   elements.converterOutput.textContent = currency(total, selected.currency);
 }
@@ -468,6 +480,7 @@ if (typeof document !== "undefined") {
 
 if (typeof module !== "undefined") {
   module.exports = {
+    calculateConversion,
     normalizeNewsItem,
     safeHttpsUrl,
   };

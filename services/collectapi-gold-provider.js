@@ -18,9 +18,8 @@ const PRODUCT_ALIASES = new Map([
   ['tam altın', 'TAM'],
   ['cumhuriyet altını', 'CUMHURIYET'],
   ['ata altın', 'ATA'],
-  ['reşat altın', 'RESAT'],
-  ['reşat altını', 'RESAT'],
-  ['22 ayar altın tl/gr', 'ALTIN_22'],
+  ['reşat lira altın', 'RESAT'],
+  ['22 ayar bilezik', 'ALTIN_22'],
 ]);
 
 const PRODUCT_DEFINITIONS = Object.freeze({
@@ -55,7 +54,7 @@ const PRODUCT_DEFINITIONS = Object.freeze({
     featured: false,
   }),
   ALTIN_22: Object.freeze({
-    name: '22 Ayar Altın',
+    name: '22 Ayar Bilezik',
     unit: 'gram',
     featured: false,
   }),
@@ -147,41 +146,33 @@ function parseCollectApiPrice(value) {
     : null;
 }
 
-function explicitPrice(item) {
-  let found = false;
-  for (const field of ['current', 'price', 'last']) {
-    if (!Object.prototype.hasOwnProperty.call(item, field)) {
-      continue;
-    }
-    const raw = item[field];
+function firstValidPrice(values) {
+  for (const raw of values) {
     if (raw === undefined || raw === null || raw === '' || raw === '-') {
       continue;
     }
-    found = true;
     const value = parseCollectApiPrice(raw);
     if (value !== null) {
-      return { found: true, value };
+      return value;
     }
   }
-  return { found, value: null };
+  return null;
 }
 
 function createMarketRow(code, item) {
   const definition = PRODUCT_DEFINITIONS[code];
-  const buy = parseCollectApiPrice(item.buy);
-  const sell = parseCollectApiPrice(item.sell);
-  const current = explicitPrice(item);
-  const price = current.found ? current.value : sell;
+  const buy = firstValidPrice([item.buying, item.buy, item.buyingstr]);
+  const sell = firstValidPrice([item.selling, item.sell, item.sellingstr]);
 
   return {
     code,
     name: definition.name,
     description: 'Türkiye piyasası · Gerçek alış/satış',
     type: 'market',
-    price,
+    price: sell,
     buy,
     sell,
-    reference: price,
+    reference: sell,
     high: null,
     low: null,
     change: null,
@@ -193,7 +184,30 @@ function createMarketRow(code, item) {
   };
 }
 
-function validateCollectApiPayload(payload) {
+function parseSourceTimestamp(value) {
+  if (
+    typeof value !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
+  ) {
+    return null;
+  }
+  const timestampMs = Date.parse(value);
+  return Number.isFinite(timestampMs)
+    ? new Date(timestampMs).toISOString()
+    : null;
+}
+
+function latestSourceTimestamp(values) {
+  const timestamps = values
+    .map(parseSourceTimestamp)
+    .filter(Boolean)
+    .map((value) => Date.parse(value));
+  return timestamps.length
+    ? new Date(Math.max(...timestamps)).toISOString()
+    : null;
+}
+
+function parseCollectApiPayload(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     throw new CollectApiDataError(
       'CollectAPI yanıtı bir JSON nesnesi olmalıdır.',
@@ -207,6 +221,7 @@ function validateCollectApiPayload(payload) {
   }
 
   const rowsByCode = new Map();
+  const sourceTimestamps = [];
   for (const item of payload.result) {
     if (!item || typeof item !== 'object' || Array.isArray(item)) {
       continue;
@@ -224,9 +239,17 @@ function validateCollectApiPayload(payload) {
       );
     }
     rowsByCode.set(code, createMarketRow(code, item));
+    sourceTimestamps.push(item.datetime);
   }
 
-  return [...rowsByCode.values()];
+  return {
+    rows: [...rowsByCode.values()],
+    sourceTimestamp: latestSourceTimestamp(sourceTimestamps),
+  };
+}
+
+function validateCollectApiPayload(payload) {
+  return parseCollectApiPayload(payload).rows;
 }
 
 function buildCollectApiUrl() {
@@ -297,16 +320,16 @@ async function readResponseText(response, maxBytes, controller) {
   return text;
 }
 
-function buildPricePayload(rows, fetchedAt) {
+function buildPricePayload(rows, fetchedAt, sourceTimestamp = null) {
   return {
     source: 'CollectAPI',
     sourceType: 'market',
     currency: 'TRY',
     unit: 'mixed',
-    sourceTimestamp: null,
-    sourceDate: null,
+    sourceTimestamp,
+    sourceDate: sourceTimestamp,
     fetchedAt,
-    updatedAt: fetchedAt,
+    updatedAt: sourceTimestamp || fetchedAt,
     freshness: 'fresh',
     staleAgeSeconds: null,
     isEstimated: false,
@@ -409,7 +432,7 @@ class CollectApiGoldProvider {
           cause: error,
         });
       }
-      return validateCollectApiPayload(payload);
+      return parseCollectApiPayload(payload);
     } catch (error) {
       if (error?.name === 'AbortError') {
         throw new CollectApiDataError(
@@ -453,9 +476,11 @@ class CollectApiGoldProvider {
 
   async refresh() {
     const nowMs = this.now();
+    const snapshot = await this.fetchRows();
     const payload = buildPricePayload(
-      await this.fetchRows(),
+      snapshot.rows,
       new Date(nowMs).toISOString(),
+      snapshot.sourceTimestamp,
     );
     this.lastKnownGood = payload;
     this.cache = {
@@ -532,7 +557,9 @@ module.exports = {
   buildCollectApiUrl,
   buildPricePayload,
   normalizeProductName,
+  parseCollectApiPayload,
   parseCollectApiPrice,
+  parseSourceTimestamp,
   parseRetryAfter,
   readResponseText,
   validateCollectApiPayload,

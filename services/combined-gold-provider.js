@@ -77,7 +77,7 @@ const TARGET_PRODUCTS = Object.freeze([
   }),
   Object.freeze({
     code: 'ALTIN_22',
-    name: '22 Ayar Altın',
+    name: '22 Ayar Bilezik',
     description: 'Türkiye piyasası · Gerçek alış/satış',
     type: 'market',
     unit: 'gram',

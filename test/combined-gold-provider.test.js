@@ -139,7 +139,7 @@ test('harici ürün adlarını UI contractına taşımadan sade canonical isimle
       'Cumhuriyet Altını',
       'Ata Altın',
       'Reşat Altını',
-      '22 Ayar Altın',
+      '22 Ayar Bilezik',
     ],
   );
   assert.equal(JSON.stringify(result).includes('<external>'), false);
@@ -319,6 +319,17 @@ test('/api/prices birleşik metadata ve dokuz satırı token sızdırmadan dönd
     assert.deepEqual(result.rows.map((item) => item.code), TARGET_CODES);
     assert.equal(result.providers.metalsDev.source, 'Metals.dev');
     assert.equal(result.providers.collectApi.source, 'CollectAPI');
+    assert.equal(result.sourceTimestamp, '2026-08-12T11:59:45.000Z');
+    assert.deepEqual(
+      result.rows
+        .filter((item) => item.code === 'CEYREK')
+        .map((item) => [item.buy, item.sell, item.price]),
+      [[7_100, 7_200, 7_200]],
+    );
+    assert.equal(
+      result.rows.find((item) => item.code === 'ALTIN_22').name,
+      '22 Ayar Bilezik',
+    );
     assert.equal(text.includes(metalsSecret), false);
     assert.equal(text.includes(collectSecret), false);
   } finally {
@@ -328,12 +339,26 @@ test('/api/prices birleşik metadata ve dokuz satırı token sızdırmadan dönd
 
 function allPhysicalRows() {
   return [
-    { name: 'Çeyrek Altın', buy: '7100', sell: '7200' },
-    { name: 'Yarım Altın', buy: '14200', sell: '14400' },
-    { name: 'Tam Altın', buy: '28400', sell: '28800' },
-    { name: 'Cumhuriyet Altını', buy: '29000', sell: '29500' },
-    { name: 'Ata Altın', buy: '29200', sell: '29700' },
-    { name: 'Reşat Altını', buy: '29400', sell: '29900' },
-    { name: '22 Ayar Altın TL/Gr', buy: '4050', sell: '4110' },
+    livePhysicalRow('Çeyrek Altın', 7_100, 7_200),
+    livePhysicalRow('Yarım Altın', 14_200, 14_400),
+    livePhysicalRow('Tam Altın', 28_400, 28_800),
+    livePhysicalRow('Cumhuriyet Altını', 29_000, 29_500),
+    livePhysicalRow('Ata Altın', 29_200, 29_700),
+    livePhysicalRow('Reşat Lira Altın', 29_400, 29_900),
+    livePhysicalRow('22 Ayar Bilezik', 4_050, 4_110),
   ];
+}
+
+function livePhysicalRow(name, buying, selling) {
+  return {
+    name,
+    buying,
+    buyingstr: String(buying),
+    selling,
+    sellingstr: String(selling),
+    time: '11:59:45',
+    date: '2026-08-12',
+    datetime: '2026-08-12T11:59:45.000Z',
+    rate: 1.27,
+  };
 }

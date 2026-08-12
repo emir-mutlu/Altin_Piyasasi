@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const {
+  calculateConversion,
   normalizeNewsItem,
   safeHttpsUrl,
 } = require('../public/app');
@@ -108,6 +109,25 @@ test('çevirici yalnızca dokuz hedef ürünü doğru sırada içerir', () => {
     ['CUMHURIYET', 'Cumhuriyet Altını'],
     ['ATA', 'Ata Altın'],
     ['RESAT', 'Reşat Altını'],
-    ['ALTIN_22', '22 Ayar Altın'],
+    ['ALTIN_22', '22 Ayar Bilezik'],
   ]);
+});
+
+test('çevirici dokuz ürünün gerçek reference fiyatıyla hesap yapar', () => {
+  const rows = [
+    ['GRAM', 4_500],
+    ['ONS', 140_000],
+    ['CEYREK', 11_179.93],
+    ['YARIM', 22_359.86],
+    ['TAM', 44_719.72],
+    ['CUMHURIYET', 45_820.5],
+    ['ATA', 46_020.75],
+    ['RESAT', 46_800.9],
+    ['ALTIN_22', 4_110.75],
+  ].map(([code, reference]) => ({ code, reference }));
+
+  for (const row of rows) {
+    assert.equal(calculateConversion(rows, row.code, 2), row.reference * 2);
+  }
+  assert.equal(calculateConversion(rows, 'UNKNOWN', 2), null);
 });

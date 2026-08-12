@@ -31,7 +31,7 @@ Production varsayılanı birleşik fiyat akışıdır. `GOLD_PROVIDER=metals_dev
 
 - Gram Altın: Metals.dev global spot TRY/gram.
 - Ons Altın: Metals.dev global spot TRY/troy ounce.
-- Çeyrek, Yarım, Tam, Cumhuriyet, Ata, Reşat ve 22 Ayar Altın: CollectAPI gerçek piyasa alış/satış verisi.
+- Çeyrek, Yarım, Tam, Cumhuriyet, Ata, Reşat ve 22 Ayar Bilezik: CollectAPI gerçek piyasa alış/satış verisi.
 
 Fiziksel ürünlerde teorik değer veya yapay spread üretilmez. CollectAPI yalnızca alış/satış döndürürse `price` ve `reference` için `sell` kullanılır; alış/satış ortalaması alınmaz. Doğrulanmış günlük değişim alanı bulunmadığı için bu satırlarda `change` ve `changePercent` `null` kalır.
 
