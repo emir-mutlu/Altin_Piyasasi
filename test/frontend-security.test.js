@@ -4,9 +4,23 @@ const path = require('node:path');
 const test = require('node:test');
 const {
   calculateConversion,
+  changeClass,
+  changeText,
   normalizeNewsItem,
+  rowChangePercent,
   safeHttpsUrl,
 } = require('../public/app');
+
+test('değişim formatı pozitif, negatif ve sıfır yüzdeleri mevcut UI biçiminde gösterir', () => {
+  assert.equal(changeText(1.27), '↑ %1,27');
+  assert.equal(changeClass(1.27), 'up');
+  assert.equal(changeText(-0.46), '↓ %0,46');
+  assert.equal(changeClass(-0.46), 'down');
+  assert.equal(changeText(0), '↑ %0,00');
+  assert.equal(changeClass(0), 'up');
+  assert.equal(changeText(null), '—');
+  assert.equal(rowChangePercent({ changePercent: 0, change: 99 }), 0);
+});
 
 test('haber başlığındaki script etiketi yalnızca metin olarak korunur', () => {
   const title = '<script>globalThis.compromised = true</script>';

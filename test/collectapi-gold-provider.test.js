@@ -9,6 +9,7 @@ const {
   buildCollectApiUrl,
   parseCollectApiPayload,
   parseCollectApiPrice,
+  parseCollectApiRate,
   parseRetryAfter,
   validateCollectApiPayload,
 } = require('../services/collectapi-gold-provider');
@@ -170,6 +171,41 @@ test('boş, çizgi, NaN, Infinity, negatif, sıfır ve bozuk fiyatları null yap
   }
 });
 
+test('rate alanında pozitif, negatif, sıfır ve numeric string değerleri korur', () => {
+  for (const [value, expected] of [
+    [1.27, 1.27],
+    [-0.46, -0.46],
+    [0, 0],
+    ['1.27', 1.27],
+    ['-0.46', -0.46],
+    ['0', 0],
+  ]) {
+    assert.equal(parseCollectApiRate(value), expected, String(value));
+  }
+});
+
+test('bozuk ve sonlu olmayan rate değerlerini null yapar', () => {
+  for (const value of [
+    'abc',
+    '',
+    ' ',
+    '-',
+    'NaN',
+    'Infinity',
+    NaN,
+    Infinity,
+    -Infinity,
+    null,
+    undefined,
+    {},
+    [],
+    true,
+    false,
+  ]) {
+    assert.equal(parseCollectApiRate(value), null, String(value));
+  }
+});
+
 test('canlı buying/selling alanlarını kullanır ve selling değerini price yapar', () => {
   const [row] = validateCollectApiPayload(
     collectPayload([
@@ -181,7 +217,7 @@ test('canlı buying/selling alanlarını kullanır ve selling değerini price ya
   assert.equal(row.price, 11_179.93);
   assert.equal(row.reference, 11_179.93);
   assert.equal(row.change, null);
-  assert.equal(row.changePercent, null);
+  assert.equal(row.changePercent, 1.27);
   assert.equal(row.isEstimated, false);
 });
 
@@ -259,10 +295,39 @@ test('geçerli datetime source timestamp olur, date ve time yeniden birleştiril
   assert.equal(withoutDatetime.sourceTimestamp, null);
 });
 
-test('semantiği doğrulanmamış rate alanını değişim olarak kullanmaz', () => {
-  const [row] = validateCollectApiPayload(
-    collectPayload([liveProduct('Çeyrek Altın', 1, 2, { rate: 1.27 })]),
+test('rate alanını yalnızca changePercent olarak pozitif, negatif ve sıfırla eşler', () => {
+  const rows = validateCollectApiPayload(
+    collectPayload([
+      liveProduct('Çeyrek Altın', 1, 2, { rate: 1.27 }),
+      liveProduct('Yarım Altın', 3, 4, { rate: -0.46 }),
+      liveProduct('Tam Altın', 5, 6, { rate: 0 }),
+    ]),
   );
+  assert.deepEqual(
+    rows.map((row) => [row.change, row.changePercent]),
+    [
+      [null, 1.27],
+      [null, -0.46],
+      [null, 0],
+    ],
+  );
+});
+
+test('rate alanını yedi fiziksel CollectAPI ürününün tamamına uygular', () => {
+  const rows = validateCollectApiPayload(collectPayload(allProducts()));
+  assert.equal(rows.length, 7);
+  assert.equal(rows.every((row) => row.change === null), true);
+  assert.deepEqual(rows.map((row) => row.changePercent), Array(7).fill(1.27));
+});
+
+test('geçersiz rate satır fiyatlarını etkilemeden changePercent değerini null bırakır', () => {
+  const [row] = validateCollectApiPayload(
+    collectPayload([
+      liveProduct('Çeyrek Altın', 11_004.81, 11_179.93, { rate: 'abc' }),
+    ]),
+  );
+  assert.equal(row.buy, 11_004.81);
+  assert.equal(row.sell, 11_179.93);
   assert.equal(row.change, null);
   assert.equal(row.changePercent, null);
 });

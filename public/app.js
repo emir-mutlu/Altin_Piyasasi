@@ -481,7 +481,10 @@ if (typeof document !== "undefined") {
 if (typeof module !== "undefined") {
   module.exports = {
     calculateConversion,
+    changeClass,
+    changeText,
     normalizeNewsItem,
+    rowChangePercent,
     safeHttpsUrl,
   };
 }

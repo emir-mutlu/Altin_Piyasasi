@@ -146,6 +146,23 @@ function parseCollectApiPrice(value) {
     : null;
 }
 
+function parseCollectApiRate(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+  if (!/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(normalized)) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function firstValidPrice(values) {
   for (const raw of values) {
     if (raw === undefined || raw === null || raw === '' || raw === '-') {
@@ -176,7 +193,7 @@ function createMarketRow(code, item) {
     high: null,
     low: null,
     change: null,
-    changePercent: null,
+    changePercent: parseCollectApiRate(item.rate),
     currency: 'TRY',
     unit: definition.unit,
     isEstimated: false,
@@ -559,6 +576,7 @@ module.exports = {
   normalizeProductName,
   parseCollectApiPayload,
   parseCollectApiPrice,
+  parseCollectApiRate,
   parseSourceTimestamp,
   parseRetryAfter,
   readResponseText,

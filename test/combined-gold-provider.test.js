@@ -323,8 +323,17 @@ test('/api/prices birleşik metadata ve dokuz satırı token sızdırmadan dönd
     assert.deepEqual(
       result.rows
         .filter((item) => item.code === 'CEYREK')
-        .map((item) => [item.buy, item.sell, item.price]),
-      [[7_100, 7_200, 7_200]],
+        .map((item) => [item.buy, item.sell, item.price, item.change, item.changePercent]),
+      [[7_100, 7_200, 7_200, null, 1.27]],
+    );
+    assert.deepEqual(
+      result.rows
+        .filter((item) => item.code === 'GRAM' || item.code === 'ONS')
+        .map((item) => [item.code, item.change, item.changePercent]),
+      [
+        ['GRAM', 3.2151, 0.2],
+        ['ONS', 100, 0.2],
+      ],
     );
     assert.equal(
       result.rows.find((item) => item.code === 'ALTIN_22').name,
