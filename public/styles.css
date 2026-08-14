@@ -763,13 +763,13 @@ h1 {
 
   .nav-links {
     display: grid;
-    grid-template-columns: repeat(4, max-content);
-    gap: 0 24px;
-    width: max-content;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0 20px;
+    width: 100%;
     min-width: 0;
     max-width: 100%;
-    justify-content: start;
-    align-self: flex-start;
+    justify-content: stretch;
+    align-self: stretch;
     overflow-x: visible;
     font-size: 0.8rem;
   }
@@ -778,6 +778,15 @@ h1 {
     min-width: 0;
     max-width: 100%;
     padding: 7px 0;
+    justify-self: center;
+  }
+
+  .nav-links a:first-child {
+    justify-self: start;
+  }
+
+  .nav-links a:last-child {
+    justify-self: end;
   }
 
   .hero-section {
@@ -804,93 +813,105 @@ h1 {
   .site-header {
     width: 100%;
     min-width: 0;
-    gap: 2px;
-    align-items: center;
-    padding: 10px 0 12px;
+    gap: 14px;
+    align-items: stretch;
+    box-sizing: border-box;
+    padding: 12px 5px 16px;
   }
 
   .site-header .brand {
-    gap: 8px;
+    gap: 10px;
+    width: 100%;
     min-width: 0;
     max-width: 100%;
-    align-self: center;
+    align-self: stretch;
+    justify-content: flex-start;
   }
 
   .site-header .brand-mark {
-    width: 34px;
-    height: 34px;
-    font-size: 0.76rem;
+    width: 38px;
+    height: 38px;
+    font-size: 0.82rem;
   }
 
   .site-header .brand strong {
-    font-size: 1.08rem;
+    font-size: 1.22rem;
   }
 
   .site-header .brand small {
-    font-size: 0.74rem;
+    font-size: 0.82rem;
   }
 
   .nav-links {
-    grid-template-columns: repeat(2, max-content);
-    gap: 0 22px;
-    width: max-content;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 28px;
+    width: 100%;
     max-width: 100%;
-    align-self: center;
-    justify-content: center;
-    font-size: 0.76rem;
+    align-self: stretch;
+    justify-content: stretch;
+    font-size: 0.82rem;
   }
 
   .nav-links a {
     width: max-content;
     padding: 5px 0;
-    justify-self: center;
+    justify-self: start;
+    text-align: left;
+  }
+
+  .nav-links a:nth-child(even) {
+    justify-self: end;
+    text-align: right;
   }
 
   .site-footer {
     grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
-    align-items: center;
-    justify-items: center;
-    padding: 24px 0 28px;
-    text-align: center;
+    gap: 18px;
+    align-items: start;
+    justify-items: stretch;
+    box-sizing: border-box;
+    padding: 28px 5px 34px;
+    text-align: left;
   }
 
   .site-footer > * {
-    width: max-content;
+    width: 100%;
     min-width: 0;
     max-width: 100%;
   }
 
   .footer-brand {
-    gap: 8px;
+    gap: 10px;
+    width: 100%;
     max-width: 100%;
+    justify-content: flex-start;
   }
 
   .footer-brand .brand-mark {
-    width: 34px;
-    height: 34px;
-    font-size: 0.76rem;
+    width: 38px;
+    height: 38px;
+    font-size: 0.82rem;
   }
 
   .footer-brand strong {
-    font-size: 1.08rem;
+    font-size: 1.22rem;
   }
 
   .footer-brand small {
-    font-size: 0.74rem;
+    font-size: 0.82rem;
   }
 
   .footer-links {
     display: grid;
-    grid-template-columns: repeat(2, max-content);
-    gap: 6px 16px;
-    width: max-content;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 28px;
+    width: 100%;
     min-width: 0;
     max-width: 100%;
-    justify-content: center;
-    justify-items: center;
+    justify-content: stretch;
+    justify-items: start;
     color: var(--ink-strong);
-    font-size: 0.82rem;
+    font-size: 0.88rem;
   }
 
   .footer-links a {
@@ -898,8 +919,15 @@ h1 {
     max-width: 100%;
   }
 
+  .footer-links a:nth-child(2) {
+    justify-self: end;
+    text-align: right;
+  }
+
   .footer-links a[href^="mailto:"] {
     grid-column: 1 / -1;
+    justify-self: center;
+    text-align: center;
     overflow-wrap: anywhere;
   }
 }
