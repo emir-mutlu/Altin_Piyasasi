@@ -42,8 +42,11 @@ function liveProduct(name, buying, selling, overrides = {}) {
 function allProducts() {
   return [
     liveProduct('Çeyrek Altın', 11_004.81, 11_179.93),
+    liveProduct('Çeyrek Altın Eski', 10_900.75, 11_050.5),
     liveProduct('Yarım Altın', 22_009.62, 22_359.86),
+    liveProduct('Yarım Altın Eski', 21_800.5, 22_100.25),
     liveProduct('Tam Altın', 44_019.24, 44_719.72),
+    liveProduct('Tam Altın Eski', 43_600.75, 44_200.5),
     liveProduct('Cumhuriyet Altını', 45_100.25, 45_820.5),
     liveProduct('Ata Altın', 45_300.4, 46_020.75),
     liveProduct('Reşat Lira Altın', 46_000.5, 46_800.9),
@@ -89,15 +92,53 @@ test('sabit HTTPS CollectAPI endpointini ve backend Authorization headerını ku
   assert.equal(buildCollectApiUrl().href, `${COLLECTAPI_ORIGIN}${COLLECTAPI_GOLD_PATH}`);
 });
 
-test('yedi fiziksel ürünü açık alias map ile canonical kodlara dönüştürür', () => {
+test('on fiziksel ürünü açık alias map ile canonical kodlara dönüştürür', () => {
   const rows = validateCollectApiPayload(collectPayload(allProducts()));
   assert.deepEqual(
     rows.map((row) => row.code),
-    ['CEYREK', 'YARIM', 'TAM', 'CUMHURIYET', 'ATA', 'RESAT', 'ALTIN_22'],
+    [
+      'CEYREK',
+      'CEYREK_ESKI',
+      'YARIM',
+      'YARIM_ESKI',
+      'TAM',
+      'TAM_ESKI',
+      'CUMHURIYET',
+      'ATA',
+      'RESAT',
+      'ALTIN_22',
+    ],
   );
   assert.equal(PRODUCT_ALIASES.get('çeyrek altın'), 'CEYREK');
+  assert.equal(PRODUCT_ALIASES.get('çeyrek altın eski'), 'CEYREK_ESKI');
+  assert.equal(PRODUCT_ALIASES.get('yarım altın eski'), 'YARIM_ESKI');
+  assert.equal(PRODUCT_ALIASES.get('tam altın eski'), 'TAM_ESKI');
   assert.equal(PRODUCT_ALIASES.get('reşat lira altın'), 'RESAT');
   assert.equal(PRODUCT_ALIASES.get('22 ayar bilezik'), 'ALTIN_22');
+});
+
+test('güncel ve eski Çeyrek, Yarım ve Tam ürünlerini kesin olarak ayırır', () => {
+  const rows = validateCollectApiPayload(
+    collectPayload([
+      liveProduct('Çeyrek Altın', 1, 2),
+      liveProduct('Çeyrek Altın Eski', 3, 4),
+      liveProduct('Yarım Altın', 5, 6),
+      liveProduct('Yarım Altın Eski', 7, 8),
+      liveProduct('Tam Altın', 9, 10),
+      liveProduct('Tam Altın Eski', 11, 12),
+    ]),
+  );
+  assert.deepEqual(
+    rows.map((row) => [row.code, row.name]),
+    [
+      ['CEYREK', 'Çeyrek Altın'],
+      ['CEYREK_ESKI', 'Eski Çeyrek Altın'],
+      ['YARIM', 'Yarım Altın'],
+      ['YARIM_ESKI', 'Eski Yarım Altın'],
+      ['TAM', 'Tam Altın'],
+      ['TAM_ESKI', 'Eski Tam Altın'],
+    ],
+  );
 });
 
 test('ürün adında yalnızca boşluk, Unicode ve Türkçe harf normalizasyonu uygular', () => {
@@ -313,11 +354,37 @@ test('rate alanını yalnızca changePercent olarak pozitif, negatif ve sıfırl
   );
 });
 
-test('rate alanını yedi fiziksel CollectAPI ürününün tamamına uygular', () => {
+test('rate alanını on fiziksel CollectAPI ürününün tamamına uygular', () => {
   const rows = validateCollectApiPayload(collectPayload(allProducts()));
-  assert.equal(rows.length, 7);
+  assert.equal(rows.length, 10);
   assert.equal(rows.every((row) => row.change === null), true);
-  assert.deepEqual(rows.map((row) => row.changePercent), Array(7).fill(1.27));
+  assert.deepEqual(rows.map((row) => row.changePercent), Array(10).fill(1.27));
+});
+
+test('eski ürünlerde gerçek alış, satış, reference ve rate alanlarını kullanır', () => {
+  const rows = validateCollectApiPayload(
+    collectPayload([
+      liveProduct('Çeyrek Altın Eski', 10_900.75, 11_050.5, { rate: 0.76 }),
+      liveProduct('Yarım Altın Eski', 21_800.5, 22_100.25, { rate: -0.38 }),
+      liveProduct('Tam Altın Eski', 43_600.75, 44_200.5, { rate: 0 }),
+    ]),
+  );
+  assert.deepEqual(
+    rows.map((row) => [
+      row.code,
+      row.buy,
+      row.sell,
+      row.price,
+      row.reference,
+      row.change,
+      row.changePercent,
+    ]),
+    [
+      ['CEYREK_ESKI', 10_900.75, 11_050.5, 11_050.5, 11_050.5, null, 0.76],
+      ['YARIM_ESKI', 21_800.5, 22_100.25, 22_100.25, 22_100.25, null, -0.38],
+      ['TAM_ESKI', 43_600.75, 44_200.5, 44_200.5, 44_200.5, null, 0],
+    ],
+  );
 });
 
 test('geçersiz rate satır fiyatlarını etkilemeden changePercent değerini null bırakır', () => {

@@ -102,7 +102,35 @@ test('görünür fiyat metadata ve gecikme uyarısı tamamen kaldırılmıştır
   assert.doesNotMatch(html, /class="terminal-foot"|id="priceSource"|id="priceUpdated"/);
 });
 
-test('çevirici yalnızca dokuz hedef ürünü doğru sırada içerir', () => {
+test('fiyat tablosu yalnızca Ürün, Alış / Satış ve Değişim kolonlarını gösterir', () => {
+  const html = fs.readFileSync(
+    path.join(__dirname, '..', 'public', 'index.html'),
+    'utf8',
+  );
+  const app = fs.readFileSync(
+    path.join(__dirname, '..', 'public', 'app.js'),
+    'utf8',
+  );
+  const tableHead = html.slice(
+    html.indexOf('<thead>'),
+    html.indexOf('</thead>') + '</thead>'.length,
+  );
+  const headers = [...tableHead.matchAll(/<th scope="col">([^<]+)<\/th>/g)]
+    .map((match) => match[1]);
+  const renderPriceTableSource = app.slice(
+    app.indexOf('function renderPriceTable('),
+    app.indexOf('function renderTicker('),
+  );
+
+  assert.deepEqual(headers, ['Ürün', 'Alış / Satış', 'Değişim']);
+  assert.equal((renderPriceTableSource.match(/<td>/g) || []).length, 3);
+  assert.doesNotMatch(renderPriceTableSource, /currency\(row\.reference/);
+  assert.match(renderPriceTableSource, /currency\(row\.buy/);
+  assert.match(renderPriceTableSource, /currency\(row\.sell/);
+  assert.match(renderPriceTableSource, /changeText\(rowChangePercent\(row\)\)/);
+});
+
+test('çevirici on iki hedef ürünü doğru sırada içerir', () => {
   const html = fs.readFileSync(
     path.join(__dirname, '..', 'public', 'index.html'),
     'utf8',
@@ -118,8 +146,11 @@ test('çevirici yalnızca dokuz hedef ürünü doğru sırada içerir', () => {
     ['GRAM', 'Gram Altın'],
     ['ONS', 'Ons Altın'],
     ['CEYREK', 'Çeyrek Altın'],
+    ['CEYREK_ESKI', 'Eski Çeyrek Altın'],
     ['YARIM', 'Yarım Altın'],
+    ['YARIM_ESKI', 'Eski Yarım Altın'],
     ['TAM', 'Tam Altın'],
+    ['TAM_ESKI', 'Eski Tam Altın'],
     ['CUMHURIYET', 'Cumhuriyet Altını'],
     ['ATA', 'Ata Altın'],
     ['RESAT', 'Reşat Altını'],
@@ -127,13 +158,16 @@ test('çevirici yalnızca dokuz hedef ürünü doğru sırada içerir', () => {
   ]);
 });
 
-test('çevirici dokuz ürünün gerçek reference fiyatıyla hesap yapar', () => {
+test('çevirici mevcut dokuz ve yeni üç ürünün reference fiyatıyla miktar 1 ve 2 hesaplar', () => {
   const rows = [
     ['GRAM', 4_500],
     ['ONS', 140_000],
     ['CEYREK', 11_179.93],
+    ['CEYREK_ESKI', 11_050.5],
     ['YARIM', 22_359.86],
+    ['YARIM_ESKI', 22_100.25],
     ['TAM', 44_719.72],
+    ['TAM_ESKI', 44_200.5],
     ['CUMHURIYET', 45_820.5],
     ['ATA', 46_020.75],
     ['RESAT', 46_800.9],
@@ -141,6 +175,7 @@ test('çevirici dokuz ürünün gerçek reference fiyatıyla hesap yapar', () =>
   ].map(([code, reference]) => ({ code, reference }));
 
   for (const row of rows) {
+    assert.equal(calculateConversion(rows, row.code, 1), row.reference);
     assert.equal(calculateConversion(rows, row.code, 2), row.reference * 2);
   }
   assert.equal(calculateConversion(rows, 'UNKNOWN', 2), null);

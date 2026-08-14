@@ -153,7 +153,6 @@ function renderPriceTable(rows) {
           <span class="product-desc">${row.description}</span>
         </td>
         <td><span class="price-value">${currency(row.buy, row.currency)} / ${currency(row.sell, row.currency)}</span></td>
-        <td><span class="price-value">${currency(row.reference, row.currency)}</span></td>
         <td>
           <span class="change ${changeClass(rowChangePercent(row))}">
             ${changeText(rowChangePercent(row))}
@@ -230,7 +229,7 @@ function renderPriceUnavailable() {
   ).join("");
   elements.priceRows.innerHTML = `
     <tr>
-      <td colspan="4">Altın fiyatları şu anda kullanılamıyor.</td>
+      <td colspan="3">Altın fiyatları şu anda kullanılamıyor.</td>
     </tr>
   `;
   elements.marketTicker.innerHTML =

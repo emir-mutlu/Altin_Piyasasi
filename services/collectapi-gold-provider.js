@@ -14,8 +14,11 @@ const MAX_TRY_PRICE = 100_000_000;
 
 const PRODUCT_ALIASES = new Map([
   ['çeyrek altın', 'CEYREK'],
+  ['çeyrek altın eski', 'CEYREK_ESKI'],
   ['yarım altın', 'YARIM'],
+  ['yarım altın eski', 'YARIM_ESKI'],
   ['tam altın', 'TAM'],
+  ['tam altın eski', 'TAM_ESKI'],
   ['cumhuriyet altını', 'CUMHURIYET'],
   ['ata altın', 'ATA'],
   ['reşat lira altın', 'RESAT'],
@@ -28,13 +31,28 @@ const PRODUCT_DEFINITIONS = Object.freeze({
     unit: 'adet',
     featured: true,
   }),
+  CEYREK_ESKI: Object.freeze({
+    name: 'Eski Çeyrek Altın',
+    unit: 'adet',
+    featured: false,
+  }),
   YARIM: Object.freeze({
     name: 'Yarım Altın',
     unit: 'adet',
     featured: false,
   }),
+  YARIM_ESKI: Object.freeze({
+    name: 'Eski Yarım Altın',
+    unit: 'adet',
+    featured: false,
+  }),
   TAM: Object.freeze({
     name: 'Tam Altın',
+    unit: 'adet',
+    featured: false,
+  }),
+  TAM_ESKI: Object.freeze({
+    name: 'Eski Tam Altın',
     unit: 'adet',
     featured: false,
   }),

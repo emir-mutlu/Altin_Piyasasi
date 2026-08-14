@@ -358,8 +358,20 @@ h1 {
 
 .price-table {
   width: 100%;
-  min-width: 560px;
+  table-layout: fixed;
   border-collapse: collapse;
+}
+
+.price-table th:first-child {
+  width: 40%;
+}
+
+.price-table th:nth-child(2) {
+  width: 38%;
+}
+
+.price-table th:last-child {
+  width: 22%;
 }
 
 .price-table th {
@@ -779,6 +791,20 @@ h1 {
 
   .price-terminal {
     padding: 18px;
+  }
+
+  .price-table th,
+  .price-table td {
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+
+  .price-table td:nth-child(2) .price-value {
+    white-space: normal;
+  }
+
+  .change {
+    min-width: 0;
   }
 
   .market-strip {

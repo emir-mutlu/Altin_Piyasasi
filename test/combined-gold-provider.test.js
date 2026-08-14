@@ -17,8 +17,11 @@ const TARGET_CODES = [
   'GRAM',
   'ONS',
   'CEYREK',
+  'CEYREK_ESKI',
   'YARIM',
+  'YARIM_ESKI',
   'TAM',
+  'TAM_ESKI',
   'CUMHURIYET',
   'ATA',
   'RESAT',
@@ -101,8 +104,11 @@ function collectPayload(overrides = {}) {
     'market',
     [
       row('CEYREK', 7_500, 'market'),
+      row('CEYREK_ESKI', 7_400, 'market'),
       row('YARIM', 15_000, 'market'),
+      row('YARIM_ESKI', 14_800, 'market'),
       row('TAM', 30_000, 'market'),
+      row('TAM_ESKI', 29_600, 'market'),
       row('CUMHURIYET', 31_000, 'market'),
       row('ATA', 31_500, 'market'),
       row('RESAT', 32_000, 'market'),
@@ -113,11 +119,11 @@ function collectPayload(overrides = {}) {
   );
 }
 
-test('dokuz hedef ürünü sabit sırada ve doğru provider verisiyle birleştirir', async () => {
+test('on iki hedef ürünü sabit sırada ve doğru provider verisiyle birleştirir', async () => {
   const result = await combined(metalsPayload(), collectPayload()).getPrices();
   assert.deepEqual(result.rows.map((item) => item.code), TARGET_CODES);
   assert.deepEqual(TARGET_PRODUCTS.map((item) => item.code), TARGET_CODES);
-  assert.equal(result.rows.length, 9);
+  assert.equal(result.rows.length, 12);
   assert.equal(result.rows.find((item) => item.code === 'GRAM').reference, 4_500);
   assert.equal(result.rows.find((item) => item.code === 'CEYREK').reference, 7_500);
   assert.equal(result.rows.every((item) => item.isEstimated === false), true);
@@ -134,8 +140,11 @@ test('harici ürün adlarını UI contractına taşımadan sade canonical isimle
       'Gram Altın',
       'Ons Altın',
       'Çeyrek Altın',
+      'Eski Çeyrek Altın',
       'Yarım Altın',
+      'Eski Yarım Altın',
       'Tam Altın',
+      'Eski Tam Altın',
       'Cumhuriyet Altını',
       'Ata Altın',
       'Reşat Altını',
@@ -171,6 +180,7 @@ test('Metals.dev başarısızsa fiziksel CollectAPI satırları korunur', async 
   assert.equal(result.rows.find((item) => item.code === 'GRAM').reference, null);
   assert.equal(result.rows.find((item) => item.code === 'ONS').reference, null);
   assert.equal(result.rows.find((item) => item.code === 'YARIM').reference, 15_000);
+  assert.equal(result.rows.find((item) => item.code === 'YARIM_ESKI').reference, 14_800);
   assert.equal(result.providers.metalsDev.available, false);
 });
 
@@ -264,7 +274,7 @@ test('tek provider yapılandırılması partial-ready kabul edilir', () => {
   assert.equal(instance.status().configured, true);
 });
 
-test('/api/prices birleşik metadata ve dokuz satırı token sızdırmadan döndürür', async () => {
+test('/api/prices birleşik metadata ve on iki satırı token sızdırmadan döndürür', async () => {
   const nowMs = Date.parse('2026-08-12T12:00:00.000Z');
   const metalsSecret = 'TEST_HTTP_METALS_SECRET';
   const collectSecret = 'TEST_HTTP_COLLECT_SECRET';
@@ -328,6 +338,24 @@ test('/api/prices birleşik metadata ve dokuz satırı token sızdırmadan dönd
     );
     assert.deepEqual(
       result.rows
+        .filter((item) => item.code.endsWith('_ESKI'))
+        .map((item) => [
+          item.code,
+          item.buy,
+          item.sell,
+          item.price,
+          item.reference,
+          item.change,
+          item.changePercent,
+        ]),
+      [
+        ['CEYREK_ESKI', 7_000, 7_100, 7_100, 7_100, null, 0.76],
+        ['YARIM_ESKI', 14_000, 14_200, 14_200, 14_200, null, -0.38],
+        ['TAM_ESKI', 28_000, 28_400, 28_400, 28_400, null, 0],
+      ],
+    );
+    assert.deepEqual(
+      result.rows
         .filter((item) => item.code === 'GRAM' || item.code === 'ONS')
         .map((item) => [item.code, item.change, item.changePercent]),
       [
@@ -349,8 +377,11 @@ test('/api/prices birleşik metadata ve dokuz satırı token sızdırmadan dönd
 function allPhysicalRows() {
   return [
     livePhysicalRow('Çeyrek Altın', 7_100, 7_200),
+    livePhysicalRow('Çeyrek Altın Eski', 7_000, 7_100, 0.76),
     livePhysicalRow('Yarım Altın', 14_200, 14_400),
+    livePhysicalRow('Yarım Altın Eski', 14_000, 14_200, -0.38),
     livePhysicalRow('Tam Altın', 28_400, 28_800),
+    livePhysicalRow('Tam Altın Eski', 28_000, 28_400, 0),
     livePhysicalRow('Cumhuriyet Altını', 29_000, 29_500),
     livePhysicalRow('Ata Altın', 29_200, 29_700),
     livePhysicalRow('Reşat Lira Altın', 29_400, 29_900),
@@ -358,7 +389,7 @@ function allPhysicalRows() {
   ];
 }
 
-function livePhysicalRow(name, buying, selling) {
+function livePhysicalRow(name, buying, selling, rate = 1.27) {
   return {
     name,
     buying,
@@ -368,6 +399,6 @@ function livePhysicalRow(name, buying, selling) {
     time: '11:59:45',
     date: '2026-08-12',
     datetime: '2026-08-12T11:59:45.000Z',
-    rate: 1.27,
+    rate,
   };
 }
