@@ -738,14 +738,25 @@ h1 {
   .site-header {
     align-items: flex-start;
     flex-direction: column;
+    gap: 8px;
     justify-content: center;
     padding: 18px 0;
   }
 
   .nav-links {
+    display: grid;
+    grid-template-columns: repeat(4, max-content);
+    gap: 0 clamp(18px, 4vw, 32px);
     width: 100%;
-    justify-content: space-between;
-    overflow-x: auto;
+    min-width: 0;
+    max-width: 100%;
+    justify-content: start;
+    overflow-x: visible;
+  }
+
+  .nav-links a {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .hero-section {
@@ -765,6 +776,68 @@ h1 {
 
   .news-pulse {
     min-height: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .site-header {
+    width: 100%;
+    min-width: 0;
+    padding: 14px 0 16px;
+  }
+
+  .site-header .brand {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .nav-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 18px;
+    max-width: 360px;
+  }
+
+  .nav-links a {
+    width: max-content;
+    padding: 9px 0;
+    justify-self: start;
+  }
+
+  .site-footer {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+    align-items: start;
+  }
+
+  .site-footer > * {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .footer-brand {
+    max-width: 100%;
+  }
+
+  .footer-links {
+    display: grid;
+    grid-template-columns: repeat(2, max-content);
+    gap: 10px 18px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    justify-content: start;
+    color: var(--ink-strong);
+  }
+
+  .footer-links a {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .footer-links a[href^="mailto:"] {
+    grid-column: 1 / -1;
+    overflow-wrap: anywhere;
   }
 }
 
