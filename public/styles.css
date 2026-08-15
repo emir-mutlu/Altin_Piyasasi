@@ -762,14 +762,15 @@ h1 {
   }
 
   .nav-links {
-    display: grid;
-    grid-template-columns: repeat(4, max-content);
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
     gap: 0 clamp(28px, 4vw, 40px);
-    width: 100%;
+    width: max-content;
     min-width: 0;
     max-width: 100%;
     justify-content: center;
-    align-self: stretch;
+    align-self: center;
     overflow-x: visible;
     font-size: 0.8rem;
   }
@@ -778,8 +779,8 @@ h1 {
     min-width: 0;
     max-width: 100%;
     padding: 7px 0;
-    justify-self: center;
     text-align: center;
+    white-space: nowrap;
   }
 
   .hero-section {
@@ -803,9 +804,9 @@ h1 {
 
   .site-footer {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 14px;
     justify-items: center;
-    padding: 32px 0 42px;
+    padding: 28px 0 36px;
     text-align: center;
   }
 
@@ -820,6 +821,10 @@ h1 {
 }
 
 @media (max-width: 768px) {
+  body {
+    min-width: 0;
+  }
+
   .site-header {
     width: 100%;
     min-width: 0;
@@ -830,7 +835,7 @@ h1 {
   }
 
   .site-header .brand {
-    gap: 10px;
+    gap: 8px;
     width: max-content;
     min-width: 0;
     max-width: 100%;
@@ -839,43 +844,45 @@ h1 {
   }
 
   .site-header .brand-mark {
-    width: 38px;
-    height: 38px;
-    font-size: 0.82rem;
+    width: 34px;
+    height: 34px;
+    font-size: 0.76rem;
   }
 
   .site-header .brand strong {
-    font-size: 1.22rem;
+    font-size: 1.12rem;
   }
 
   .site-header .brand small {
-    font-size: 0.82rem;
+    font-size: 0.76rem;
   }
 
   .nav-links {
-    grid-template-columns: repeat(2, max-content);
-    gap: 10px clamp(32px, 10vw, 56px);
-    width: 100%;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: clamp(12px, 4vw, 22px);
+    width: max-content;
     max-width: 100%;
-    align-self: stretch;
+    align-self: center;
     justify-content: center;
-    font-size: 0.82rem;
+    font-size: clamp(10px, 3vw, 12px);
   }
 
   .nav-links a {
     width: max-content;
     padding: 5px 0;
-    justify-self: center;
     text-align: center;
+    white-space: nowrap;
   }
 
   .site-footer {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
     align-items: center;
-    justify-items: center;
     box-sizing: border-box;
-    padding: 28px 5px 34px;
+    padding: 26px 5px 32px;
     text-align: center;
   }
 
@@ -886,35 +893,35 @@ h1 {
   }
 
   .footer-brand {
-    gap: 10px;
+    gap: 8px;
     width: max-content;
     max-width: 100%;
     justify-content: center;
   }
 
   .footer-brand .brand-mark {
-    width: 38px;
-    height: 38px;
-    font-size: 0.82rem;
+    width: 34px;
+    height: 34px;
+    font-size: 0.76rem;
   }
 
   .footer-brand strong {
-    font-size: 1.22rem;
+    font-size: 1.12rem;
   }
 
   .footer-brand small {
-    font-size: 0.82rem;
+    font-size: 0.76rem;
   }
 
   .footer-links {
-    display: grid;
-    grid-template-columns: repeat(2, max-content);
-    gap: 10px clamp(32px, 10vw, 56px);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 32px;
     width: 100%;
     min-width: 0;
     max-width: 100%;
     justify-content: center;
-    justify-items: center;
     color: var(--ink-strong);
     font-size: 0.88rem;
   }
@@ -925,8 +932,7 @@ h1 {
   }
 
   .footer-links a[href^="mailto:"] {
-    grid-column: 1 / -1;
-    justify-self: center;
+    flex: 0 0 100%;
     text-align: center;
     overflow-wrap: anywhere;
   }
